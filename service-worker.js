@@ -1,24 +1,32 @@
 /**
  * service-worker.js
- * Cache-Strategie: cache-first für alle App-Ressourcen.
+ * Cache-Strategie:
+ *   - HTML        → network-first (Updates kommen sofort an)
+ *   - statische Assets → cache-first (Offline-Fähigkeit)
  *
- * Bei INSTALL werden alle Dateien einmalig in den Cache geholt.
- * Bei ACTIVATE werden alte Caches gelöscht.
- * Bei FETCH wird zuerst der Cache bedient, dann das Netz.
+ * Precache ist zweigeteilt:
+ *   - ESSENTIAL_FILES: alle Dateien, ohne die das Spiel nicht startet.
+ *     Werden über cache.addAll geladen – wenn auch nur eine fehlt,
+ *     schlägt der Install fehl und der SW wird nicht aktiv. Das ist
+ *     gewollt, weil genau das auf einen Deploy-Fehler hinweist.
+ *   - OPTIONAL_FILES: Dateien, deren Fehlen das Spiel nicht tötet
+ *     (z. B. Sounds). Werden einzeln geladen; Fehler werden geloggt,
+ *     aber der Install läuft trotzdem durch.
  *
- * CACHE_VERSION bei jedem Deployment erhöhen, damit Clients die
- * neuen Dateien bekommen.
+ * CACHE_VERSION:
+ *   Bei Änderungen an Dateinamen oder Entfernen von Dateien erhöhen.
+ *   Bei rein inhaltlichen Änderungen ist kein Bump nötig, weil HTML
+ *   network-first ist.
  */
 
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v4';
 const CACHE_NAME = `offiziersschafkopf-${CACHE_VERSION}`;
 
 /**
- * Vollständige Liste aller App-Ressourcen. Wenn du eine Datei
- * hinzufügst, trag sie hier ein – sonst ist sie offline nicht
- * verfügbar.
+ * Essenzielle Dateien – müssen vorhanden sein, sonst bricht der
+ * Install ab. Enthält alle Module, Stylesheets und Karten-Assets.
  */
-const PRECACHE_FILES = [
+const ESSENTIAL_FILES = [
   // Shell
   './',
   './index.html',
@@ -59,12 +67,14 @@ const PRECACHE_FILES = [
   // JS – UI
   './js/ui/render.js',
   './js/ui/animations.js',
+  './js/ui/sounds.js',
   './js/ui/components/CardView.js',
   './js/ui/components/StackView.js',
   './js/ui/components/Dialog.js',
 
   // JS – Utils
   './js/utils/shuffle.js',
+  './js/utils/storage.js',
 
   // JS – Einstieg
   './js/main.js',
@@ -114,15 +124,38 @@ const PRECACHE_FILES = [
   './assets/cards/schellen-7.png',
 ];
 
+/**
+ * Optionale Dateien – dürfen fehlen, ohne dass der Install scheitert.
+ * Werden einzeln geladen; fehlende Dateien werden geloggt.
+ */
+const OPTIONAL_FILES = [
+  // Sounds
+  './assets/sounds/card-play.mp3',
+  './assets/sounds/card-flip.mp3',
+  './assets/sounds/trick-win.mp3',
+  './assets/sounds/game-win.mp3',
+  './assets/sounds/game-lose.mp3',
+];
+
 // ---------------------------------------------------------------------------
-// Install: Dateien in den Cache laden
+// Install: Essentielles über addAll, Optionales einzeln
 // ---------------------------------------------------------------------------
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_FILES)),
+    caches.open(CACHE_NAME).then(async (cache) => {
+      // Essentiell: bricht bei Fehler ab.
+      await cache.addAll(ESSENTIAL_FILES);
+
+      // Optional: einzeln, Fehler werden geloggt, aber nicht propagiert.
+      const optional = OPTIONAL_FILES.map((url) =>
+        cache.add(url).catch((err) => {
+          console.warn('Precache skip (optional):', url, err?.message ?? err);
+        }),
+      );
+      await Promise.allSettled(optional);
+    }),
   );
-  // Neue SW übernimmt sofort, ohne auf Tab-Schließen zu warten.
   self.skipWaiting();
 });
 
@@ -140,29 +173,50 @@ self.addEventListener('activate', (event) => {
       ),
     ),
   );
-  // SW übernimmt sofort die Kontrolle über bereits geöffnete Tabs.
   self.clients.claim();
 });
 
 // ---------------------------------------------------------------------------
-// Fetch: cache-first
+// Fetch: HTML network-first, Assets cache-first
 // ---------------------------------------------------------------------------
 
 self.addEventListener('fetch', (event) => {
-  // Nur GET-Anfragen behandeln.
   if (event.request.method !== 'GET') return;
 
-  // Nur Anfragen auf den eigenen Origin bedienen.
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
+  const isHTML =
+    event.request.mode === 'navigate' ||
+    (event.request.headers.get('accept') || '').includes('text/html');
+
+  if (isHTML) {
+    // Network-first: neue Version sofort sichtbar, Offline-Fallback auf
+    // gecachtes index.html. Nur erfolgreiche Antworten cachen – sonst
+    // landet eine 404-Seite unter der angefragten URL im Cache.
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+          }
+          return response;
+        })
+        .catch(() =>
+          caches
+            .match(event.request)
+            .then((cached) => cached || caches.match('./index.html')),
+        ),
+    );
+    return;
+  }
+
+  // Statische Assets: cache-first.
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
-
-      // Nicht im Cache: aus dem Netz holen und nachcachen.
       return fetch(event.request).then((response) => {
-        // Nur erfolgreiche, grundlegende Antworten cachen.
         if (!response || response.status !== 200 || response.type !== 'basic') {
           return response;
         }

@@ -26,6 +26,10 @@
     <!-- Start-Screen                                                -->
     <!-- ----------------------------------------------------------- -->
     <section id="screen-start" class="screen screen--start">
+      <button class="mute-toggle" data-action="toggle-mute" aria-label="Ton ein-/ausschalten">
+        <span class="mute-toggle__icon" data-bind="mute-icon">🔊</span>
+      </button>
+
       <h1 class="screen__title">Offiziersschafkopf</h1>
       <div class="screen__body">
         <p class="screen__hint">Spielmodus</p>
@@ -35,6 +39,18 @@
           </button>
           <button class="menu__button" data-action="start-ai">
             Mensch vs KI
+          </button>
+          <button class="menu__button menu__button--secondary" data-action="show-rules">
+            Spielregeln
+          </button>
+        </div>
+
+        <!-- Statistik – nur sichtbar, wenn Spiele gezählt wurden -->
+        <div class="stats" id="stats-block" hidden>
+          <h2 class="stats__title">Statistik</h2>
+          <div class="stats__sections" id="stats-sections"></div>
+          <button class="stats__reset" data-action="reset-stats">
+            Statistik zurücksetzen
           </button>
         </div>
       </div>
@@ -46,10 +62,14 @@
     <section id="screen-game" class="screen screen--game">
       <header class="hud hud--top">
         <div class="hud__side">
+          <button class="hud__back" data-action="quit-game" aria-label="Zurück zum Menü">
+            ←
+          </button>
           <span class="hud__name" data-bind="opponent-name">Gegner</span>
         </div>
         <div class="hud__center">
           <span class="hud__phase" data-bind="phase">–</span>
+          <span class="hud__announcement" data-bind="announcement"></span>
           <span class="hud__turn" data-bind="turn"></span>
         </div>
         <div class="hud__side hud__side--right">

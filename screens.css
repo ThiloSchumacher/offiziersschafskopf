@@ -1,0 +1,507 @@
+/* =========================================================================
+   screens.css
+   Screen-Container, HUD und Dialoge.
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   Screen-Umschaltung
+   ------------------------------------------------------------------------- */
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+}
+
+.screen.is-active {
+  display: flex;
+}
+
+/* -------------------------------------------------------------------------
+   Start- und Ergebnis-Screen
+   ------------------------------------------------------------------------- */
+
+.screen--start,
+.screen--result {
+  align-items: center;
+  justify-content: center;
+  padding-top: calc(1.5rem + env(safe-area-inset-top, 0));
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0));
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  text-align: center;
+  background: linear-gradient(180deg, #1a1f2a 0%, #0f1419 100%);
+}
+
+.screen__title {
+  font-size: 1.75rem;
+  letter-spacing: 0.02em;
+  margin-bottom: 2rem;
+  color: var(--color-accent);
+}
+
+.screen__body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+  max-width: 22rem;
+}
+
+.screen__hint {
+  color: var(--color-text-dim);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.menu__button {
+  padding: 0.9rem 1.25rem;
+  border-radius: 0.5rem;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  font-size: 1rem;
+  font-weight: 500;
+  transition: background var(--t-fast);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.menu__button:hover:not(:disabled),
+.menu__button:focus-visible:not(:disabled) {
+  background: #303740;
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.menu__button--secondary {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-dim);
+  font-size: 0.9rem;
+  padding: 0.7rem 1.25rem;
+}
+
+.menu__button--secondary:hover:not(:disabled),
+.menu__button--secondary:focus-visible:not(:disabled) {
+  background: rgba(240, 180, 41, 0.08);
+  color: var(--color-text);
+}
+
+.menu__badge {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-text-dim);
+}
+
+/* -------------------------------------------------------------------------
+   Statistik-Block im Start-Screen
+   ------------------------------------------------------------------------- */
+
+.stats {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.stats__title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-accent);
+  margin-bottom: 0.75rem;
+}
+
+.stats__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.stats__section-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-dim);
+  margin-bottom: 0.35rem;
+}
+
+.stats__list {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.2rem 1rem;
+  font-size: 0.85rem;
+}
+
+.stats__list dt {
+  color: var(--color-text-dim);
+}
+
+.stats__list dd {
+  font-weight: 600;
+  text-align: right;
+  color: var(--color-accent-strong);
+}
+
+.stats__reset {
+  display: block;
+  margin-top: 1rem;
+  padding: 0.4rem 0.75rem;
+  width: 100%;
+  border-radius: 0.35rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+  font-size: 0.75rem;
+  text-align: center;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.stats__reset:hover,
+.stats__reset:focus-visible {
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--color-danger);
+  outline: 1px solid var(--color-danger);
+  outline-offset: 1px;
+}
+
+/* -------------------------------------------------------------------------
+   Ergebnis-Details
+   ------------------------------------------------------------------------- */
+
+.result-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 1rem;
+  text-align: left;
+  margin-bottom: 1rem;
+}
+
+.result-list dt {
+  color: var(--color-text-dim);
+  font-size: 0.9rem;
+}
+
+.result-list dd {
+  font-weight: 600;
+}
+
+/* -------------------------------------------------------------------------
+   Spiel-Screen
+   ------------------------------------------------------------------------- */
+
+.screen--game {
+  background: radial-gradient(ellipse at center, var(--color-table) 0%, var(--color-table-edge) 100%);
+}
+
+.table {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: stretch;
+  padding: 0.35rem 0;
+  min-height: 0;
+}
+
+.table > .row,
+.table > .trick {
+  flex-shrink: 0;
+}
+
+/* -------------------------------------------------------------------------
+   HUD
+   ------------------------------------------------------------------------- */
+
+.hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.75rem;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  transition: background var(--t-med);
+}
+
+.hud--top {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.hud--bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.hud.is-active {
+  background: rgba(240, 180, 41, 0.14);
+}
+
+.hud.is-active .hud__name,
+.hud.is-active .hud__points,
+.hud.is-active .hud__tricks {
+  color: var(--color-accent-strong);
+}
+
+.hud__side {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 5rem;
+}
+
+.hud__side--right {
+  justify-content: flex-end;
+}
+
+.hud__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background var(--t-fast);
+}
+
+.hud__back:hover,
+.hud__back:focus-visible {
+  background: rgba(240, 180, 41, 0.35);
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.hud__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  flex: 1;
+}
+
+.hud__stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  min-width: 2.5rem;
+}
+
+.hud__label {
+  color: var(--color-text-dim);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.hud__name {
+  font-weight: 600;
+}
+
+.hud__phase {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  background: var(--color-surface-2);
+  color: var(--color-text-dim);
+}
+
+.hud__turn {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-accent-strong);
+  min-height: 1em;
+}
+
+.hud__points,
+.hud__tricks {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.hud__progress {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--color-accent-strong);
+  font-variant-numeric: tabular-nums;
+}
+
+.hud__announcement {
+  color: var(--color-accent-strong);
+  font-weight: 600;
+  min-height: 1em;
+}
+
+/* -------------------------------------------------------------------------
+   Dialog-Layer
+   ------------------------------------------------------------------------- */
+
+.dialog-layer {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  z-index: 10;
+}
+
+.dialog-layer[hidden] {
+  display: none;
+}
+
+/* Dialog am oberen Rand (z. B. Spielart-Auswahl, damit der Spieler
+   seine Karten sehen kann). */
+.dialog-layer--top {
+  align-items: flex-start;
+  padding-top: calc(0.75rem + env(safe-area-inset-top, 0));
+}
+
+.dialog {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  width: 100%;
+  max-width: 22rem;
+  max-height: calc(100dvh - 3rem);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.dialog--info {
+  max-width: 26rem;
+}
+
+.dialog__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.dialog__message {
+  color: var(--color-text-dim);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.dialog__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dialog__info-heading {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-accent-strong);
+  margin-bottom: -0.5rem;
+}
+
+.dialog__info-body {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.dialog__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.dialog__button {
+  width: 100%;
+  padding: 0.65rem 0.9rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  font-size: 0.95rem;
+  text-align: center;
+  transition: background var(--t-fast);
+}
+
+.dialog__button:hover,
+.dialog__button:focus-visible {
+  background: #303740;
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+.dialog__button--primary {
+  background: var(--color-accent);
+  color: #1c1c1c;
+  border-color: var(--color-accent);
+  font-weight: 600;
+}
+
+.dialog__button--primary:hover {
+  background: var(--color-accent-strong);
+}
+
+.dialog__button--danger {
+  background: var(--color-danger);
+  color: #fff;
+  border-color: var(--color-danger);
+  font-weight: 600;
+}
+
+.dialog__button--danger:hover {
+  background: #f06060;
+}
+
+/* -------------------------------------------------------------------------
+   Mute-Toggle im Start-Screen
+   ------------------------------------------------------------------------- */
+
+.mute-toggle {
+  position: absolute;
+  top: calc(0.75rem + env(safe-area-inset-top, 0));
+  right: calc(0.75rem + env(safe-area-inset-right, 0));
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  transition: background var(--t-fast);
+  z-index: 5;
+}
+
+.mute-toggle:hover,
+.mute-toggle:focus-visible {
+  background: rgba(240, 180, 41, 0.15);
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.mute-toggle__icon {
+  line-height: 1;
+  pointer-events: none;
+}
