@@ -9,9 +9,8 @@
  * liefert nur die Bausteine, die dort zusammengesetzt werden.
  */
 
-import { RANKS, GAME_TYPES } from '../config/constants.js';
-import { isTrumpf } from '../rules/trumpf.js';
-import { beats } from '../rules/trumpf.js';
+import { RANKS, GAME_TYPES, SUITS } from '../config/constants.js';
+import { isTrumpf, beats } from '../rules/trumpf.js';
 
 /** Ist die Karte in dieser Spielart Trumpf? */
 export function isTrumpfCard(view, card) {
@@ -58,21 +57,27 @@ export function isAss(card) {
   return card.rank === RANKS.ASS;
 }
 
-/** Karte ist eine 10. */
-export function isTen(card) {
-  return card.rank === RANKS.ZEHN;
-}
-
 /**
  * Ist die Karte der höchste Trumpf im Spiel?
  * Nur Eichel-Ober beim Farb-Solo. Beim Wenz: Eichel-Unter.
- * (Unter beim Wenz: höchster ist Eichel-Unter.)
  */
 export function isTopTrumpf(view, card) {
   if (!isTrumpfCard(view, card)) return false;
   if (view.gameType === GAME_TYPES.WENZ) {
-    return card.rank === RANKS.UNTER && card.suit === 'eichel';
+    return card.rank === RANKS.UNTER && card.suit === SUITS.EICHEL;
   }
-  // Farb-Solo
-  return card.rank === RANKS.OBER && card.suit === 'eichel';
+  return card.rank === RANKS.OBER && card.suit === SUITS.EICHEL;
+}
+
+/**
+ * Ist die Karte das Ass der Solo-Farbe?
+ *
+ * Nur beim Farb-Solo relevant. Das Solo-Ass ist Trumpf und wird von
+ * `isAss(card) && !isTrumpfCard(...)` ausgeschlossen – deshalb braucht
+ * es eine eigene Kategorie, damit es beim Anspielen nicht durch die
+ * Trumpf-Kostenrechnung begraben wird.
+ */
+export function isSoloSuitAss(view, card) {
+  if (view.gameType !== GAME_TYPES.FARB_SOLO) return false;
+  return card.rank === RANKS.ASS && card.suit === view.soloSuit;
 }
