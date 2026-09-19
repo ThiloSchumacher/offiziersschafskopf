@@ -9,22 +9,30 @@
  *
  * Sounds:
  *   - card-play  → bei jedem card:played, sofort
- *   - trick-win  → bei jedem trick:resolved, mit 200 ms Verzögerung,
- *                  damit er den card-play-Sound des zweiten Plays
- *                  nicht überlagert
+ *   - trick-win  → bei jedem trick:resolved, mit 200 ms Verzögerung
  *   - card-flip  → einmal pro Stich, wenn mindestens eine Karte aufgedeckt wird
- *   - game-win / game-lose → bei game:end, abhängig davon, ob der
- *     Alleinspieler gewonnen hat (im Hotseat) bzw. ob der Mensch
- *     gewonnen hat (im KI-Modus).
+ *   - game-win / game-lose → bei game:end, abhängig vom Modus
  *
- *   Der Mute-Button ist im Start-Screen oben rechts. Zustand wird in
- *   localStorage persistiert. `unlockAudio()` wird bei jedem Menü-Klick
- *   aufgerufen, damit Mobile-Browser Audio freigeben.
+ * Karten-Flug (Flicker-Fix):
+ *   Der GameController.playCard läuft komplett synchron und ruft
+ *   applyTrickResult → revealAll auf, BEVOR die Events feuern. Der
+ *   State ist also direkt nach dem zweiten Play bereits revealed.
  *
- * Dialoge:
- *   Die Spielart-Auswahl öffnet mit align: 'top', damit der Spieler
- *   seine Karten am unteren Bildschirmrand sehen kann. Alle anderen
- *   Dialoge bleiben zentriert.
+ *   In handleCardPlayed wird deshalb bei `trickResolvedByThisPlay`
+ *   KEIN volles renderAll aufgerufen, sondern nur die gespielte
+ *   Stack-Position per sourceEl.remove() geleert.
+ *
+ *   Zweiter Flicker-Fix: `toRect` wird aus dem Trick-Slot gemessen
+ *   (feste Größe laut CSS), BEVOR die Trick-Karte eingefügt wird.
+ *   Dadurch entfällt das `await nextFrame()` zwischen remove und
+ *   flyCard – der Ghost wird im selben synchronen Block erzeugt wie
+ *   die Entfernung. So gibt es keinen Paint-Frame, in dem die Karte
+ *   weder im Stack noch als Ghost sichtbar ist.
+ *
+ * Reveal-Flip:
+ *   `pendingHiddenPositions` hält die revealed Karten während der
+ *   Flip-Phase unsichtbar, damit sie nicht als Vorderseite aufblitzen,
+ *   bevor der Flip-Ghost sie überdeckt.
  */
 
 import { GameController } from './game/GameController.js';
@@ -57,7 +65,6 @@ import {
   flipReveal,
   flyCard,
   flyCardToTarget,
-  nextFrame,
   waitFor,
 } from './ui/animations.js';
 
@@ -71,12 +78,6 @@ const TRICK_HOLD_MS = 500;
 const REVEAL_FLIP_MS = 400;
 const WINNER_FLY_MS = 420;
 const WINNER_FLY_DELAY_MS = 60;
-
-/**
- * Verzögerung, mit der der trick-win-Sound nach dem card:played-Event
- * abgespielt wird. Reicht, damit der card-play-Sound des zweiten Plays
- * noch hörbar ist, bevor der Stich-Sound einsetzt.
- */
 const TRICK_WIN_SOUND_DELAY_MS = 200;
 
 // ---------------------------------------------------------------------------
@@ -137,19 +138,21 @@ let controller = null;
 /** 'hotseat' | 'ai' | null */
 let gameMode = null;
 
-/**
- * Schwierigkeitsgrad der KI. Wird NUR im KI-Modus gesetzt (siehe newGame).
- * Im Hotseat-Modus bleibt der Wert unverändert und wird nie gelesen.
- */
 let aiDifficulty = DIFFICULTY.MEDIUM;
 
-/** Solange true, werden Kartenklicks ignoriert. */
 let animationInProgress = false;
 
-/** Epoch-Zähler: bei jedem Spielstart erhöht; alte Tasks brechen ab. */
 let epoch = 0;
 
-/** Asynchrone Warteschlange für Animations-Tasks. */
+/**
+ * Keys "playerIndex:positionIndex" für Positionen, die während der
+ * Reveal-Flip-Phase unsichtbar gerendert werden sollen. Wird nur in
+ * handleTrickResolved gesetzt und direkt nach den Flips wieder geleert.
+ *
+ * @type {Set<string>}
+ */
+let pendingHiddenPositions = new Set();
+
 const animationQueue = [];
 let processingQueue = false;
 
@@ -197,6 +200,19 @@ async function processQueue() {
 function isPlayerInteractive(playerIndex) {
   if (gameMode === 'hotseat') return true;
   return playerIndex === 0;
+}
+
+// ---------------------------------------------------------------------------
+// Render-Helfer
+// ---------------------------------------------------------------------------
+
+function rerender() {
+  if (!controller) return;
+  renderAll(controller.state, {
+    onCardClick: handleCardClick,
+    isPlayerInteractive,
+    hiddenPositions: pendingHiddenPositions,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -286,6 +302,7 @@ function newGame(mode, options = {}) {
   epoch++;
   animationQueue.length = 0;
   animationInProgress = false;
+  pendingHiddenPositions = new Set();
   gameMode = mode;
 
   if (mode === 'ai') {
@@ -309,10 +326,6 @@ function newGame(mode, options = {}) {
 // ---------------------------------------------------------------------------
 
 function wireControllerEvents(c) {
-  const rerender = () => renderAll(c.state, {
-    onCardClick: handleCardClick,
-    isPlayerInteractive,
-  });
   const myEpoch = epoch;
 
   c.bus.on('phase:changed', ({ to }) => {
@@ -325,14 +338,11 @@ function wireControllerEvents(c) {
   c.bus.on('announcement:nochmal', rerender);
 
   c.bus.on('card:played', (payload) => {
-    // Jede gelegte Karte bekommt ihren Sound – auch die zweite im Stich.
     playSound('card-play');
     enqueue(() => handleCardPlayed(payload, myEpoch));
   });
 
   c.bus.on('trick:resolved', (payload) => {
-    // Der Stich-Sound kommt mit kurzer Verzögerung, damit der card-play-
-    // Sound des zweiten Plays nicht sofort überschrieben wird.
     playSound('trick-win', { delayMs: TRICK_WIN_SOUND_DELAY_MS });
     enqueue(() => handleTrickResolved(payload, myEpoch));
   });
@@ -344,11 +354,6 @@ function wireControllerEvents(c) {
       console.error('storage: Statistik konnte nicht gespeichert werden', err);
     }
 
-    // Sound-Semantik je Modus:
-    //   KI-Modus: Spieler 0 ist der Mensch. Sieg = Mensch gewinnt.
-    //   Hotseat:  Es gibt keine feste Spielerrolle für den Nutzer,
-    //             deshalb zählt der Alleinspieler – sein Sieg ist
-    //             „Spiel gewonnen", seine Niederlage „Spiel verloren".
     const humanWon = gameMode === 'ai'
       ? result.winnerIndex === 0
       : result.winnerIndex === c.state.declarerIndex;
@@ -358,8 +363,9 @@ function wireControllerEvents(c) {
       if (myEpoch !== epoch) return;
       await waitFor(RESULT_DELAY_MS);
       if (myEpoch !== epoch) return;
+      pendingHiddenPositions = new Set();
       clearTrickSlots();
-      renderAll(c.state, { onCardClick: handleCardClick, isPlayerInteractive });
+      rerender();
       renderResult(result);
       showScreen('result');
       c.finishGame();
@@ -402,41 +408,61 @@ async function tryRunAIMoveIfActive(myEpoch) {
 
 async function handleCardPlayed({ playerIndex, positionIndex }, myEpoch) {
   if (myEpoch !== epoch) return;
+  if (!controller) return;
+
+  const trickResolvedByThisPlay =
+    controller.state.currentTrick.plays.length === 0;
 
   animationInProgress = true;
   try {
     const sourceEl = findCardInStack(playerIndex, positionIndex);
     if (!sourceEl) {
-      renderAll(controller.state, {
-        onCardClick: handleCardClick,
-        isPlayerInteractive,
-      });
+      rerender();
       return;
     }
+
     const fromRect = sourceEl.getBoundingClientRect();
     const imgEl = sourceEl.querySelector('.card__img');
     const imageSrc = imgEl?.src ?? null;
-
-    renderAll(controller.state, {
-      onCardClick: handleCardClick,
-      isPlayerInteractive,
-    });
 
     const trickSlot = document.querySelector(
       `.trick__slot[data-player="${playerIndex}"]`,
     );
     if (!trickSlot) return;
+
+    // toRect aus dem Trick-Slot messen, BEVOR die Trick-Karte eingefügt
+    // wird. Der Slot hat eine feste Größe (CSS), also können wir seine
+    // Position ohne Zwischen-Frame kennen. Dadurch entfällt das
+    // `await nextFrame()` zwischen remove und flyCard – der Ghost wird
+    // im selben synchronen Block wie sourceEl.remove() erzeugt, und
+    // es gibt keinen Paint-Frame, in dem die Karte weder im Stack noch
+    // als Ghost sichtbar ist.
+    const toRect = trickSlot.getBoundingClientRect();
+
+    // Trick-Karte unsichtbar vorbereiten.
     trickSlot.innerHTML = '';
     const cardEl = buildTrickCardElement(controller.state, playerIndex);
     if (!cardEl) return;
     cardEl.style.opacity = '0';
     trickSlot.appendChild(cardEl);
 
-    await nextFrame();
-    if (myEpoch !== epoch) return;
-    const toRect = cardEl.getBoundingClientRect();
+    // Stack-Position aktualisieren.
+    if (trickResolvedByThisPlay) {
+      // Stich beendet: State ist bereits revealed (durch applyTrickResult
+      // → revealAll im GameController). Ein volles renderAll würde die
+      // revealed Karte sofort als Vorderseite im Stack zeigen, dann
+      // käme erst 500+ ms später der Flip in handleTrickResolved.
+      // Deshalb nur das Quell-Element entfernen – kein Re-Render.
+      sourceEl.remove();
+    } else {
+      // Erster Play: voller Re-Render für HUD und andere Stacks.
+      rerender();
+    }
 
-    if (imageSrc) {
+    // Ghost SOFORT erzeugen (gleiche Task wie remove/rerender). flyCard
+    // läuft synchron bis zum ersten await, also wird der Ghost vor dem
+    // nächsten Paint im DOM eingehängt.
+    if (imageSrc && fromRect) {
       await flyCard({ fromRect, toRect, imageSrc, duration: 280 });
     }
     if (myEpoch !== epoch) return;
@@ -445,9 +471,6 @@ async function handleCardPlayed({ playerIndex, positionIndex }, myEpoch) {
   } finally {
     if (myEpoch === epoch) animationInProgress = false;
   }
-
-  const trickResolvedByThisPlay =
-    controller.state.currentTrick.plays.length === 0;
 
   if (playerIndex !== 1 && !trickResolvedByThisPlay) {
     await tryRunAIMoveIfActive(myEpoch);
@@ -506,26 +529,34 @@ async function handleTrickResolved({ winner, revealed }, myEpoch) {
           imageSrc,
           duration: WINNER_FLY_MS,
           delayMs: i * WINNER_FLY_DELAY_MS,
+          restoreVisibility: false,
         });
       }));
     }
     if (myEpoch !== epoch) return;
 
     clearTrickSlots();
-    renderAll(controller.state, {
-      onCardClick: handleCardClick,
-      isPlayerInteractive,
-    });
+
+    // Die revealed Karten im Stack vor dem Re-Render unsichtbar
+    // markieren, damit der Flip-Ghost sie ohne Vorderseiten-Blitz
+    // übernehmen kann.
+    if (Array.isArray(revealed) && revealed.length > 0) {
+      pendingHiddenPositions = new Set(
+        revealed.map((r) => `${r.playerIndex}:${r.positionIndex}`),
+      );
+    }
+
+    rerender();
 
     if (Array.isArray(revealed) && revealed.length > 0) {
-      // Nur ein Flip-Sound pro Stich, auch wenn zwei Karten
-      // gleichzeitig aufgedeckt werden.
       playSound('card-flip');
       await Promise.all(
         revealed.map((r) => flipRevealedCard(r, myEpoch)),
       );
       if (myEpoch !== epoch) return;
     }
+
+    pendingHiddenPositions = new Set();
   } finally {
     if (myEpoch === epoch) animationInProgress = false;
   }
@@ -563,8 +594,6 @@ async function handlePhase(c, phase) {
 }
 
 async function runGameTypeDialog(c) {
-  // align: 'top', damit der Spieler seine Karten am unteren Bildschirm-
-  // rand sieht, während er die Spielart wählt.
   const choice = await showChoiceDialog({
     title: 'Spielart wählen',
     message: 'Du bist Alleinspieler (Vorhand). Was spielst du?',
@@ -682,8 +711,6 @@ async function confirmResetStats() {
 }
 
 function wireMenu() {
-  // Bei jedem Menü-Klick Audio freischalten (Mobile-Vorgabe).
-  // Der Handler läuft unabhängig vom eigentlichen Klick-Ziel.
   document.addEventListener('click', () => unlockAudio(), { capture: true });
 
   document.querySelector('[data-action="start-hotseat"]')
@@ -728,6 +755,7 @@ function returnToMenu() {
   epoch++;
   animationQueue.length = 0;
   animationInProgress = false;
+  pendingHiddenPositions = new Set();
   gameMode = null;
   clearTrickSlots();
   renderStatsBlock();
