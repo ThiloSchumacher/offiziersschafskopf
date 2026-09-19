@@ -8,9 +8,14 @@
  * Trick-Mitte wird NICHT von renderAll() gezeichnet – sie wird von
  * der Animations-Schicht in main.js verwaltet.
  *
- * Interaktivität: Der Aufrufer kann per handlers.isPlayerInteractive
- * steuern, welche Spieler klickbar sind. Standard: alle.
- * Im KI-Modus etwa: nur Spieler 0.
+ * Interaktivität: `handlers.isPlayerInteractive` steuert, welche Spieler
+ * klickbar sind.
+ *
+ * `handlers.hiddenPositions` ist ein optionales Set von Keys
+ * "playerIndex:positionIndex". Positionen darin werden mit
+ * visibility:hidden gerendert. Wird während der Reveal-Flip-Phase
+ * benutzt, damit die revealed Karte nicht einen Frame lang sichtbar
+ * ist, bevor der Flip-Ghost sie überdeckt.
  */
 
 import { STACKS_PER_PLAYER } from '../config/constants.js';
@@ -27,6 +32,7 @@ import { createStackElement } from './components/StackView.js';
  * @param {object} handlers
  * @param {(positionIndex: number, playerIndex: number) => void} handlers.onCardClick
  * @param {(playerIndex: number) => boolean} [handlers.isPlayerInteractive]
+ * @param {Set<string>} [handlers.hiddenPositions]
  */
 export function renderAll(state, handlers) {
   renderStacks(state, handlers);
@@ -41,6 +47,7 @@ function renderStacks(state, handlers) {
   const legal = currentLegalMoves(state);
   const canPlay = state.phase === PHASES.SPIELEN;
   const isInteractive = handlers.isPlayerInteractive ?? (() => true);
+  const hiddenPositions = handlers.hiddenPositions ?? new Set();
 
   for (let playerIndex = 0; playerIndex < 2; playerIndex++) {
     const player = state.players[playerIndex];
@@ -57,8 +64,6 @@ function renderStacks(state, handlers) {
       const position = player.positionAt(posIdx);
       const isLegal = canPlay && isActive && legal.includes(posIdx);
       const isClickable = isLegal && playerInteractive;
-      // Dimmen nur, wenn der Spieler auch interaktiv ist – sonst
-      // würde die KI-Hand während ihres Zugs unruhig wirken.
       const shouldDim =
         canPlay && isActive && playerInteractive && !isLegal && !position.isEmpty();
 
@@ -70,7 +75,12 @@ function renderStacks(state, handlers) {
           : null,
       });
 
-      if (stack) slot.appendChild(stack);
+      if (stack) {
+        if (hiddenPositions.has(`${playerIndex}:${posIdx}`)) {
+          stack.style.visibility = 'hidden';
+        }
+        slot.appendChild(stack);
+      }
     }
   }
 }
