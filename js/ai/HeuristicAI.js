@@ -4,38 +4,20 @@
  *
  * Arbeitsweise:
  *   1. Für jeden legalen Zug wird eine Bewertung (score) berechnet.
- *   2. Der Zug mit dem höchsten Score gewinnt.
- *   3. Bei Gleichstand: niedrigster Positions-Index (deterministisch).
+ *   2. Der Zug mit dem höchsten Score gewinnt – bei Gleichstand der
+ *      niedrigste Positions-Index (deterministisch).
+ *   3. Optional: Zufallsanteil. Bei `randomness > 0` wird mit dieser
+ *      Wahrscheinlichkeit ein beliebiger legaler Zug gewählt statt des
+ *      besten. Das macht die KI schlagbar und variiert ihr Verhalten.
  *
- * Kein Zufall, keine Simulation. Bewusste MVP-Entscheidung: wenige,
- * gut nachvollziehbare Regeln statt Black-Box-Optimierung.
+ * Schwierigkeitsgrade (siehe main.js):
+ *   einfach  → randomness = 0.40
+ *   mittel   → randomness = 0.15
+ *   schwer   → randomness = 0.00
  *
  * Die KI sieht NUR die AIView. Sie hat keinen Zugriff auf den GameState.
  * Ein Fairness-Test (siehe tests/HeuristicAI.test.js) prüft das
  * strukturell.
- *
- * Bewertungs-Heuristiken:
- *
- *   Grundkosten (immer):
- *     - Kartenwert: hohe Karten sind teuer zu verlieren.
- *       score -= card.points * 0.4
- *     - Trumpf: Trumpf ist strategisch wertvoll.
- *       score -= 6
- *
- *   Wenn ich führe:
- *     - Ass: früh ausspielen, solange der Gegner bedienen muss.
- *       score += 8
- *     - Höchster Trumpf: unschlagbar und zieht Gegner-Trumpf.
- *       score += 14
- *     - 0-Punkte-Karten: früh loswerden.
- *       score += 3
- *
- *   Wenn ich Zweiter bin:
- *     - Gewinnen möglich:
- *       score += (Stichwert + eigene Kartenpunkte) * 1.0
- *       Bonus wenn die Gewinnkarte 0 Punkte hat (Effizienz): +5
- *     - Nicht gewinnen möglich (Abwurf):
- *       0-Punkte-Karte bevorzugt: +5
  */
 
 import {
@@ -47,19 +29,32 @@ import {
   isWorthless,
   isAss,
   isTopTrumpf,
+  isSoloSuitAss,
 } from './strategies.js';
 
 // Gewichte – an einer Stelle zentral, damit sie leicht justierbar sind.
 const W = Object.freeze({
   CARD_VALUE_COST: 0.4,
   TRUMPF_COST: 6,
+
+  // Nicht-Trumpf-Ass beim Anspielen: stark, weil der Gegner bedienen
+  // muss und nicht trumpfen kann (wenn er die Farbe hat).
   ASS_LEAD_BONUS: 8,
-  // Der höchste Trumpf ist die stärkste Eröffnung im Spiel: er ist
-  // unschlagbar und zwingt den Gegner, einen Trumpf zuzugeben. Deshalb
-  // muss dieser Bonus deutlich über dem Ass-Bonus liegen – sonst
-  // rechnet die Kostenrechnung den Top-Trumpf schlechter als ein
-  // Nicht-Trumpf-Ass.
+
+  // Solo-Ass beim Anspielen: ebenfalls stark, aber nicht unschlagbar –
+  // ein gegnerischer Ober kann es trumpfen. Deshalb ein eigener,
+  // niedrigerer Bonus als beim Nicht-Trumpf-Ass, aber hoch genug, um
+  // über König und 10 zu liegen. Balance:
+  //   Nicht-Trumpf-Ass  3.6
+  //   Niete             3.0
+  //   Solo-Ass          2.6
+  //   König            -1.6
+  SOLO_ASS_LEAD_BONUS: 13,
+
+  // Top-Trumpf (Eichel-Ober / Eichel-Unter): unschlagbar, zieht
+  // Gegner-Trumpf, muss höher liegen als jedes Ass.
   TOP_TRUMPF_LEAD_BONUS: 14,
+
   WORTHLESS_LEAD_BONUS: 3,
   WIN_MULT: 1.0,
   WIN_CHEAP_BONUS: 5,
@@ -90,6 +85,11 @@ export function evaluateMove(view, positionIndex, card) {
     if (isAss(card) && !isTrumpfCard(view, card)) {
       score += W.ASS_LEAD_BONUS;
     }
+    // Das Solo-Ass ist Trumpf und wird vom Guard oben ausgeschlossen.
+    // Es bekommt einen eigenen, niedrigeren Bonus – siehe W-Kommentar.
+    if (isSoloSuitAss(view, card)) {
+      score += W.SOLO_ASS_LEAD_BONUS;
+    }
     if (isTopTrumpf(view, card)) {
       score += W.TOP_TRUMPF_LEAD_BONUS;
     }
@@ -106,7 +106,6 @@ export function evaluateMove(view, positionIndex, card) {
         score += W.WIN_CHEAP_BONUS;
       }
     } else {
-      // Abwurf: keine Chance zu gewinnen.
       if (isWorthless(card)) {
         score += W.DISCARD_WORTHLESS_BONUS;
       }
@@ -119,16 +118,30 @@ export function evaluateMove(view, positionIndex, card) {
 /**
  * Wählt den besten Zug aus den legalen Positions-Indizes.
  *
- * Wirft, wenn keine legalen Züge übergeben werden – das ist ein Bug
- * im Aufrufer, nicht ein normaler Spielzustand.
- *
  * @param {object} view  AIView
  * @param {number[]} legalIndices  Positions-Indizes aus legalMoves(state)
+ * @param {object} [options]
+ * @param {number} [options.randomness]  Wahrscheinlichkeit (0..1), einen
+ *   zufälligen legalen Zug statt des besten zu wählen. Default 0.
+ * @param {() => number} [options.rng]  Zufallsgenerator, Default Math.random
  * @returns {number}  gewählter Positions-Index
  */
-export function chooseMove(view, legalIndices) {
+export function chooseMove(view, legalIndices, options = {}) {
   if (!Array.isArray(legalIndices) || legalIndices.length === 0) {
     throw new Error('HeuristicAI: keine legalen Züge übergeben');
+  }
+
+  const randomness = options.randomness ?? 0;
+  const rng = options.rng ?? Math.random;
+
+  if (randomness < 0 || randomness > 1) {
+    throw new Error(`HeuristicAI: randomness muss zwischen 0 und 1 liegen, war ${randomness}`);
+  }
+
+  // Zufallszug, wenn aktiviert und der Wurf unter der Schwelle liegt.
+  if (randomness > 0 && rng() < randomness) {
+    const pick = Math.floor(rng() * legalIndices.length);
+    return legalIndices[pick];
   }
 
   let bestIndex = legalIndices[0];
@@ -145,7 +158,6 @@ export function chooseMove(view, legalIndices) {
     const score = evaluateMove(view, idx, entry.card);
 
     // Strictly greater: bei Gleichstand gewinnt der erste (niedrigste Index).
-    // Das macht die KI deterministisch und Test-freundlich.
     if (score > bestScore) {
       bestScore = score;
       bestIndex = idx;
@@ -154,3 +166,18 @@ export function chooseMove(view, legalIndices) {
 
   return bestIndex;
 }
+
+/**
+ * Schwierigkeitsgrade als benannte Presets.
+ */
+export const DIFFICULTY = Object.freeze({
+  EASY:   { id: 'easy',   label: 'Einfach', randomness: 0.40 },
+  MEDIUM: { id: 'medium', label: 'Mittel',  randomness: 0.15 },
+  HARD:   { id: 'hard',   label: 'Schwer',  randomness: 0.00 },
+});
+
+export const DIFFICULTY_LIST = Object.freeze([
+  DIFFICULTY.EASY,
+  DIFFICULTY.MEDIUM,
+  DIFFICULTY.HARD,
+]);
