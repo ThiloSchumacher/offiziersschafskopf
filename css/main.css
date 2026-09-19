@@ -24,9 +24,24 @@
   --color-card-red: #c8262c;
   --color-card-black: #1c1c1c;
 
-  /* Kartenmaße – Basis für alles in cards.css */
-  --card-width: min(78px, calc((100vw - 44px) / 4.3));
-  --card-height: calc(var(--card-width) * 1.5);
+  /* Karten-Seitenverhältnis, abgeleitet aus den PNGs (798 / 453 ≈ 1.762).
+     Wenn du die Kartenbilder später auf 2:3 beschneidest, hier auf 1.5
+     setzen und die Höhenbegrenzung in --card-width anpassen. */
+  --card-aspect: 1.762;
+
+  /* Kartenbreite: das Minimum aus drei Bedingungen –
+       1. absolute Obergrenze (hübsche Größe auf großen Displays)
+       2. Breite des Viewports: 4 Karten pro Reihe + Padding
+       3. Höhe des Viewports: 4 Reihen + Trick + Stack-Offsets + HUDs
+     Faktor 9.52 = 5.4 × 1.762, hergeleitet aus:
+       4 Reihen × (1 + 0.10 Stack-Offset) + 1 Trick-Karte = 5.4 Kartenhöhen.
+     Der Höhenabzug (8rem) deckt beide HUD-Leisten und Außenabstände ab. */
+  --card-width: min(
+    78px,
+    calc((100vw - 44px) / 4.3),
+    calc((100dvh - 8rem) / 9.52)
+  );
+  --card-height: calc(var(--card-width) * var(--card-aspect));
   --card-radius: calc(var(--card-width) * 0.09);
   --row-gap: 4px;
   --stack-offset: calc(var(--card-height) * 0.10);
@@ -88,8 +103,6 @@ button:disabled {
    Animationen
    ------------------------------------------------------------------------- */
 
-/* Karte landet in der Trick-Mitte. Wird nicht durch FLIP abgedeckt,
-   sondern dient als zusätzlicher „Aufsetzer" beim Einfliegen. */
 @keyframes cardLand {
   0%   { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
   60%  { box-shadow: 0 8px 18px rgba(0, 0, 0, 0.55); }
@@ -100,7 +113,6 @@ button:disabled {
   animation: cardLand 260ms ease-out;
 }
 
-/* prefers-reduced-motion: alle Animationen aus */
 @media (prefers-reduced-motion: reduce) {
   .card--landing {
     animation: none;
