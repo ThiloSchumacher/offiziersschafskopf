@@ -1,0 +1,146 @@
+/* =========================================================================
+   cards.css
+   Karten und Stacks.
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   Einzelne Karte
+   ------------------------------------------------------------------------- */
+
+.card {
+  position: relative;
+  width: var(--card-width);
+  height: var(--card-height);
+  border-radius: var(--card-radius);
+  background: var(--color-card-face);
+  border: 1px solid var(--color-card-border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.card__img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* Fallback, wenn das Bild fehlt: rein per CSS gezeichnete Karte */
+.card--fallback {
+  background: var(--color-card-face);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-card);
+  font-weight: 700;
+  font-size: calc(var(--card-width) * 0.28);
+  color: var(--color-card-black);
+}
+
+.card--fallback.card--red {
+  color: var(--color-card-red);
+}
+
+/* Kartenrücken */
+.card--back {
+  background: repeating-linear-gradient(
+    45deg,
+    #2a3c6e,
+    #2a3c6e 4px,
+    #1e2c54 4px,
+    #1e2c54 8px
+  );
+  border: 1px solid #141e3a;
+}
+
+.card--empty {
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.18);
+  box-shadow: none;
+}
+
+/* Nicht spielbare Karte optisch dämpfen */
+.card--dimmed {
+  filter: brightness(0.7) saturate(0.6);
+}
+
+/* Anklickbar */
+.card--clickable {
+  cursor: pointer;
+  pointer-events: auto;
+  transition: transform var(--t-fast) ease-out;
+}
+
+.card--clickable:hover,
+.card--clickable:focus-visible {
+  transform: translateY(-4px);
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+/* -------------------------------------------------------------------------
+   Stack: verdeckte Karte (unten) + offene Karte (oben)
+   ------------------------------------------------------------------------- */
+
+.stack {
+  position: relative;
+  width: var(--card-width);
+  height: calc(var(--card-height) + var(--stack-offset));
+  flex-shrink: 0;
+}
+
+.stack__under {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stack__top {
+  position: absolute;
+  left: 0;
+  top: var(--stack-offset);
+  z-index: 1;
+}
+
+/* -------------------------------------------------------------------------
+   Reihen
+   ------------------------------------------------------------------------- */
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(4, var(--card-width));
+  gap: var(--row-gap);
+  justify-content: center;
+  align-items: flex-end;
+  min-height: calc(var(--card-height) + var(--stack-offset) + 2px);
+}
+
+.stack-slot {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+/* -------------------------------------------------------------------------
+   Stich-Mitte
+   ------------------------------------------------------------------------- */
+
+.trick {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: calc(var(--card-width) * 0.4);
+  min-height: calc(var(--card-height) + 8px);
+}
+
+.trick__slot {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: var(--card-width);
+  height: var(--card-height);
+}

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <title>Tests – Offiziersschafkopf</title>
+  <style>
+    body { font-family: ui-monospace, Menlo, Consolas, monospace; padding: 1rem; }
+    .summary { font-weight: bold; margin-bottom: .75rem; }
+    .test-row { padding: .15rem 0; }
+    .test-row.pass { color: #1a7f37; }
+    .test-row.fail { color: #c1121f; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>Tests</h1>
+  <div id="out"></div>
+
+  <script type="module">
+    import { runAll } from './test-runner.js';
+
+    // Alle Testdateien hier importieren – wir erweitern das pro Phase.
+    await import('./card.test.js');
+    await import('./shuffle.test.js');
+    await import('./deck.test.js');
+    await import('./trumpf.test.js');
+    await import('./position.test.js');
+    await import('./player.test.js');     
+    await import('./gamestate.test.js');
+    await import('./ansagen.test.js');
+    await import('./moves.test.js');
+    await import('./stich.test.js');
+    await import('./scoring.test.js');
+    await import('./EventBus.test.js');        
+    await import('./GameController.test.js');  
+    await import('./AIView.test.js');   
+    await import('./strategies.test.js'); 
+    await import('./HeuristicAI.test.js'); 
+
+    runAll(document.getElementById('out'));
+  </script>
+</body>
+</html>

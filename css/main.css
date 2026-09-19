@@ -1,0 +1,108 @@
+/* =========================================================================
+   main.css
+   Reset, Design-Tokens, Grundtypografie, Animationen.
+   ========================================================================= */
+
+:root {
+  /* Farben */
+  --color-bg: #0f1419;
+  --color-table: #1e4632;
+  --color-table-edge: #0d2b1d;
+  --color-surface: #1c2128;
+  --color-surface-2: #262c35;
+  --color-border: #3d444d;
+
+  --color-text: #e8eaed;
+  --color-text-dim: #9ba1a8;
+  --color-accent: #f0b429;
+  --color-accent-strong: #ffd166;
+  --color-danger: #e5484d;
+  --color-success: #3fb950;
+
+  --color-card-face: #fbfbf6;
+  --color-card-border: #2c2c2c;
+  --color-card-red: #c8262c;
+  --color-card-black: #1c1c1c;
+
+  /* Kartenmaße – Basis für alles in cards.css */
+  --card-width: min(78px, calc((100vw - 44px) / 4.3));
+  --card-height: calc(var(--card-width) * 1.5);
+  --card-radius: calc(var(--card-width) * 0.09);
+  --row-gap: 4px;
+  --stack-offset: calc(var(--card-height) * 0.10);
+
+  /* Typografie */
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-card: "Georgia", "Times New Roman", serif;
+
+  /* Timing */
+  --t-fast: 120ms;
+  --t-med: 220ms;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-ui);
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#app {
+  position: relative;
+  height: 100dvh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* Safe-Area für iOS-Notch */
+.hud--top    { padding-top: env(safe-area-inset-top, 0); }
+.hud--bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
+
+/* -------------------------------------------------------------------------
+   Animationen
+   ------------------------------------------------------------------------- */
+
+/* Karte landet in der Trick-Mitte. Wird nicht durch FLIP abgedeckt,
+   sondern dient als zusätzlicher „Aufsetzer" beim Einfliegen. */
+@keyframes cardLand {
+  0%   { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+  60%  { box-shadow: 0 8px 18px rgba(0, 0, 0, 0.55); }
+  100% { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+}
+
+.card--landing {
+  animation: cardLand 260ms ease-out;
+}
+
+/* prefers-reduced-motion: alle Animationen aus */
+@media (prefers-reduced-motion: reduce) {
+  .card--landing {
+    animation: none;
+  }
+}

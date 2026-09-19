@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Offiziersschafkopf</title>
+
+  <link rel="icon" href="data:,">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1e4632">
+
+  <!-- iOS-spezifisch (Safari nutzt Manifest nur teilweise) -->
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Schafkopf">
+
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/cards.css">
+  <link rel="stylesheet" href="css/screens.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- ----------------------------------------------------------- -->
+    <!-- Start-Screen                                                -->
+    <!-- ----------------------------------------------------------- -->
+    <section id="screen-start" class="screen screen--start">
+      <h1 class="screen__title">Offiziersschafkopf</h1>
+      <div class="screen__body">
+        <p class="screen__hint">Spielmodus</p>
+        <div class="menu">
+          <button class="menu__button" data-action="start-hotseat">
+            Mensch vs Mensch
+          </button>
+          <button class="menu__button" data-action="start-ai">
+            Mensch vs KI
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------------- -->
+    <!-- Spiel-Screen                                                -->
+    <!-- ----------------------------------------------------------- -->
+    <section id="screen-game" class="screen screen--game">
+      <header class="hud hud--top">
+        <div class="hud__side">
+          <span class="hud__name" data-bind="opponent-name">Gegner</span>
+        </div>
+        <div class="hud__center">
+          <span class="hud__phase" data-bind="phase">–</span>
+          <span class="hud__turn" data-bind="turn"></span>
+        </div>
+        <div class="hud__side hud__side--right">
+          <span class="hud__stat">
+            <span class="hud__points" data-bind="opponent-points">0</span>
+            <span class="hud__label">Punkte</span>
+          </span>
+          <span class="hud__stat">
+            <span class="hud__tricks" data-bind="opponent-tricks">0</span>
+            <span class="hud__label">Stiche</span>
+          </span>
+        </div>
+      </header>
+
+      <div class="table" id="table">
+        <!-- Gegner: Reihe hinten (Positionen 4..7) -->
+        <div class="row row--opponent" data-row="back">
+          <div class="stack-slot" data-player="1" data-position="4"></div>
+          <div class="stack-slot" data-player="1" data-position="5"></div>
+          <div class="stack-slot" data-player="1" data-position="6"></div>
+          <div class="stack-slot" data-player="1" data-position="7"></div>
+        </div>
+        <!-- Gegner: Reihe vorne (Positionen 0..3) -->
+        <div class="row row--opponent" data-row="front">
+          <div class="stack-slot" data-player="1" data-position="0"></div>
+          <div class="stack-slot" data-player="1" data-position="1"></div>
+          <div class="stack-slot" data-player="1" data-position="2"></div>
+          <div class="stack-slot" data-player="1" data-position="3"></div>
+        </div>
+
+        <!-- Stich-Mitte -->
+        <div class="trick" id="trick">
+          <div class="trick__slot" data-player="0"></div>
+          <div class="trick__slot" data-player="1"></div>
+        </div>
+
+        <!-- Spieler: Reihe vorne (Positionen 0..3) -->
+        <div class="row row--self" data-row="front">
+          <div class="stack-slot" data-player="0" data-position="0"></div>
+          <div class="stack-slot" data-player="0" data-position="1"></div>
+          <div class="stack-slot" data-player="0" data-position="2"></div>
+          <div class="stack-slot" data-player="0" data-position="3"></div>
+        </div>
+        <!-- Spieler: Reihe hinten (Positionen 4..7) -->
+        <div class="row row--self" data-row="back">
+          <div class="stack-slot" data-player="0" data-position="4"></div>
+          <div class="stack-slot" data-player="0" data-position="5"></div>
+          <div class="stack-slot" data-player="0" data-position="6"></div>
+          <div class="stack-slot" data-player="0" data-position="7"></div>
+        </div>
+      </div>
+
+      <footer class="hud hud--bottom">
+        <div class="hud__side">
+          <span class="hud__name">Du</span>
+        </div>
+        <div class="hud__center">
+          <span class="hud__progress" data-bind="trick-progress">0 / 16</span>
+          <span class="hud__label">Stiche gespielt</span>
+        </div>
+        <div class="hud__side hud__side--right">
+          <span class="hud__stat">
+            <span class="hud__points" data-bind="self-points">0</span>
+            <span class="hud__label">Punkte</span>
+          </span>
+          <span class="hud__stat">
+            <span class="hud__tricks" data-bind="self-tricks">0</span>
+            <span class="hud__label">Stiche</span>
+          </span>
+        </div>
+      </footer>
+    </section>
+
+    <!-- ----------------------------------------------------------- -->
+    <!-- Ergebnis-Screen                                             -->
+    <!-- ----------------------------------------------------------- -->
+    <section id="screen-result" class="screen screen--result">
+      <h1 class="screen__title" data-bind="result-title">–</h1>
+      <div class="screen__body">
+        <dl class="result-list">
+          <dt>Punkte</dt><dd data-bind="result-points">–</dd>
+          <dt>Ergebnis</dt><dd data-bind="result-kind">–</dd>
+          <dt>Multiplikator</dt><dd data-bind="result-multiplier">–</dd>
+        </dl>
+        <button class="menu__button" data-action="back-to-menu">Zurück zum Menü</button>
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------------- -->
+    <!-- Dialog-Layer (für Ansagen, Popups)                          -->
+    <!-- ----------------------------------------------------------- -->
+    <div id="dialog-layer" class="dialog-layer" hidden></div>
+
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
