@@ -26,7 +26,10 @@
 .screen--result {
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding-top: calc(1.5rem + env(safe-area-inset-top, 0));
+  padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0));
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
   text-align: center;
   background: linear-gradient(180deg, #1a1f2a 0%, #0f1419 100%);
 }
@@ -80,6 +83,20 @@
   outline-offset: 2px;
 }
 
+.menu__button--secondary {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text-dim);
+  font-size: 0.9rem;
+  padding: 0.7rem 1.25rem;
+}
+
+.menu__button--secondary:hover:not(:disabled),
+.menu__button--secondary:focus-visible:not(:disabled) {
+  background: rgba(240, 180, 41, 0.08);
+  color: var(--color-text);
+}
+
 .menu__badge {
   font-size: 0.7rem;
   padding: 0.15rem 0.4rem;
@@ -88,7 +105,84 @@
   color: var(--color-text-dim);
 }
 
-/* Ergebnis-Details */
+/* -------------------------------------------------------------------------
+   Statistik-Block im Start-Screen
+   ------------------------------------------------------------------------- */
+
+.stats {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--color-border);
+  text-align: left;
+}
+
+.stats__title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-accent);
+  margin-bottom: 0.75rem;
+}
+
+.stats__sections {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.stats__section-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-dim);
+  margin-bottom: 0.35rem;
+}
+
+.stats__list {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.2rem 1rem;
+  font-size: 0.85rem;
+}
+
+.stats__list dt {
+  color: var(--color-text-dim);
+}
+
+.stats__list dd {
+  font-weight: 600;
+  text-align: right;
+  color: var(--color-accent-strong);
+}
+
+.stats__reset {
+  display: block;
+  margin-top: 1rem;
+  padding: 0.4rem 0.75rem;
+  width: 100%;
+  border-radius: 0.35rem;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+  font-size: 0.75rem;
+  text-align: center;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.stats__reset:hover,
+.stats__reset:focus-visible {
+  background: rgba(229, 72, 77, 0.12);
+  color: var(--color-danger);
+  outline: 1px solid var(--color-danger);
+  outline-offset: 1px;
+}
+
+/* -------------------------------------------------------------------------
+   Ergebnis-Details
+   ------------------------------------------------------------------------- */
+
 .result-list {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -120,7 +214,7 @@
   flex-direction: column;
   justify-content: space-between;
   align-items: stretch;
-  padding: calc(0.35rem + env(safe-area-inset-top, 0)) 0;
+  padding: 0.35rem 0;
   min-height: 0;
 }
 
@@ -152,7 +246,6 @@
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Aktiver Spieler – dezenter Hinweis am HUD-Streifen */
 .hud.is-active {
   background: rgba(240, 180, 41, 0.14);
 }
@@ -173,6 +266,29 @@
 
 .hud__side--right {
   justify-content: flex-end;
+}
+
+.hud__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--color-text);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background var(--t-fast);
+}
+
+.hud__back:hover,
+.hud__back:focus-visible {
+  background: rgba(240, 180, 41, 0.35);
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
 }
 
 .hud__center {
@@ -234,6 +350,7 @@
 .hud__announcement {
   color: var(--color-accent-strong);
   font-weight: 600;
+  min-height: 1em;
 }
 
 /* -------------------------------------------------------------------------
@@ -255,6 +372,13 @@
   display: none;
 }
 
+/* Dialog am oberen Rand (z. B. Spielart-Auswahl, damit der Spieler
+   seine Karten sehen kann). */
+.dialog-layer--top {
+  align-items: flex-start;
+  padding-top: calc(0.75rem + env(safe-area-inset-top, 0));
+}
+
 .dialog {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -269,6 +393,10 @@
   gap: 1rem;
 }
 
+.dialog--info {
+  max-width: 26rem;
+}
+
 .dialog__title {
   font-size: 1.1rem;
   font-weight: 600;
@@ -278,6 +406,25 @@
   color: var(--color-text-dim);
   font-size: 0.9rem;
   line-height: 1.4;
+}
+
+.dialog__info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dialog__info-heading {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-accent-strong);
+  margin-bottom: -0.5rem;
+}
+
+.dialog__info-body {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--color-text);
 }
 
 .dialog__actions {
@@ -313,4 +460,48 @@
 
 .dialog__button--primary:hover {
   background: var(--color-accent-strong);
+}
+
+.dialog__button--danger {
+  background: var(--color-danger);
+  color: #fff;
+  border-color: var(--color-danger);
+  font-weight: 600;
+}
+
+.dialog__button--danger:hover {
+  background: #f06060;
+}
+
+/* -------------------------------------------------------------------------
+   Mute-Toggle im Start-Screen
+   ------------------------------------------------------------------------- */
+
+.mute-toggle {
+  position: absolute;
+  top: calc(0.75rem + env(safe-area-inset-top, 0));
+  right: calc(0.75rem + env(safe-area-inset-right, 0));
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  transition: background var(--t-fast);
+  z-index: 5;
+}
+
+.mute-toggle:hover,
+.mute-toggle:focus-visible {
+  background: rgba(240, 180, 41, 0.15);
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.mute-toggle__icon {
+  line-height: 1;
+  pointer-events: none;
 }
