@@ -16,9 +16,11 @@
  *
  * Gewinner-Stapel: Karten fliegen zum HUD des Gewinners.
  *   `flyCardToTarget` blendet die Quellkarte aus, während der Ghost
- *   fliegt – sonst sähe man ein Doppelbild (Karte im Stich UND Ghost
- *   gleichzeitig). Die Sichtbarkeit wird im finally-Block
- *   wiederhergestellt, falls der Aufrufer die Quelle noch braucht.
+ *   fliegt. Mit `restoreVisibility: false` bleibt die Quellkarte nach
+ *   dem Flug unsichtbar – wichtig, wenn sie kurz danach ohnehin aus
+ *   dem DOM entfernt wird (clearTrickSlots). Ohne dieses Flag würde
+ *   die erste fertige Karte wieder auftauchen, während die zweite noch
+ *   fliegt (60 ms Versatz + Flugdauer).
  *
  * Bei prefers-reduced-motion: reduce liefern alle Animationen sofort
  * ein resolved Promise, ohne visuellen Effekt.
@@ -108,8 +110,7 @@ export async function flyCard({ fromRect, toRect, imageSrc, duration = 280 }) {
  * verwendet: die Karten wandern in Richtung HUD des Stichgewinners.
  *
  * Die Quellkarte wird während des Flugs ausgeblendet, damit kein
- * Doppelbild entsteht. Nach dem Flug wird die ursprüngliche
- * Sichtbarkeit wiederhergestellt.
+ * Doppelbild entsteht.
  *
  * @param {object} args
  * @param {HTMLElement} args.sourceEl       Karten-Element im Trick
@@ -118,6 +119,10 @@ export async function flyCard({ fromRect, toRect, imageSrc, duration = 280 }) {
  * @param {number} [args.duration]
  * @param {number} [args.delayMs]            Verzögerung vor dem Flug
  * @param {number} [args.targetScale]        Endskalierung (z. B. 0.15)
+ * @param {boolean} [args.restoreVisibility] Wenn true (Default), wird
+ *   die Sichtbarkeit der Quellkarte nach dem Flug wiederhergestellt.
+ *   Wenn false, bleibt sie unsichtbar – gedacht für Aufrufer, die das
+ *   Element ohnehin gleich aus dem DOM entfernen.
  * @returns {Promise<void>}
  */
 export async function flyCardToTarget({
@@ -127,6 +132,7 @@ export async function flyCardToTarget({
   duration = 420,
   delayMs = 0,
   targetScale = 0.15,
+  restoreVisibility = true,
 }) {
   if (!sourceEl || !targetRect || !imageSrc) return;
   if (prefersReducedMotion() || duration === 0) return;
@@ -192,7 +198,12 @@ export async function flyCardToTarget({
     }
   } finally {
     if (ghost) ghost.remove();
-    sourceEl.style.visibility = originalVisibility;
+    if (restoreVisibility) {
+      sourceEl.style.visibility = originalVisibility;
+    }
+    // Wenn restoreVisibility === false: Quellkarte bleibt hidden.
+    // Das ist gewollt für Aufrufer (handleTrickResolved), die das
+    // Element gleich aus dem DOM entfernen.
   }
 }
 
