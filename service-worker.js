@@ -16,7 +16,7 @@
  *   network-first ist.
  */
 
-const CACHE_VERSION = 'v8';
+const CACHE_VERSION = 'v9';
 const CACHE_NAME = `offiziersschafkopf-${CACHE_VERSION}`;
 
 /**
