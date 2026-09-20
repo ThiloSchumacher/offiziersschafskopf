@@ -13,6 +13,13 @@
  *   - card-flip  → einmal pro Stich, wenn mindestens eine Karte aufgedeckt wird
  *   - game-win / game-lose → bei game:end, abhängig vom Modus
  *
+ * Regeln-Button:
+ *   Existiert zweimal im DOM: im Start-Screen und im Spiel-HUD
+ *   (`data-action="show-rules"`). Beide werden per querySelectorAll
+ *   verdrahtet. Wenn bereits ein Dialog offen ist (z. B. Stoß/Nochmal
+ *   oder Spielart-Auswahl), passiert nichts – der Nutzer soll zuerst
+ *   diesen Dialog abschließen.
+ *
  * Karten-Flug (Flicker-Fix):
  *   Der GameController.playCard läuft komplett synchron und ruft
  *   applyTrickResult → revealAll auf, BEVOR die Events feuern. Der
@@ -26,8 +33,7 @@
  *   (feste Größe laut CSS), BEVOR die Trick-Karte eingefügt wird.
  *   Dadurch entfällt das `await nextFrame()` zwischen remove und
  *   flyCard – der Ghost wird im selben synchronen Block erzeugt wie
- *   die Entfernung. So gibt es keinen Paint-Frame, in dem die Karte
- *   weder im Stack noch als Ghost sichtbar ist.
+ *   die Entfernung.
  *
  * Reveal-Flip:
  *   `pendingHiddenPositions` hält die revealed Karten während der
@@ -42,6 +48,7 @@ import { SUITS, GAME_TYPES } from './config/constants.js';
 import { renderAll, renderResult } from './ui/render.js';
 import {
   closeOpenDialog,
+  isDialogOpen,
   showChoiceDialog,
   showInfoDialog,
 } from './ui/components/Dialog.js';
@@ -146,8 +153,7 @@ let epoch = 0;
 
 /**
  * Keys "playerIndex:positionIndex" für Positionen, die während der
- * Reveal-Flip-Phase unsichtbar gerendert werden sollen. Wird nur in
- * handleTrickResolved gesetzt und direkt nach den Flips wieder geleert.
+ * Reveal-Flip-Phase unsichtbar gerendert werden sollen.
  *
  * @type {Set<string>}
  */
@@ -432,11 +438,7 @@ async function handleCardPlayed({ playerIndex, positionIndex }, myEpoch) {
 
     // toRect aus dem Trick-Slot messen, BEVOR die Trick-Karte eingefügt
     // wird. Der Slot hat eine feste Größe (CSS), also können wir seine
-    // Position ohne Zwischen-Frame kennen. Dadurch entfällt das
-    // `await nextFrame()` zwischen remove und flyCard – der Ghost wird
-    // im selben synchronen Block wie sourceEl.remove() erzeugt, und
-    // es gibt keinen Paint-Frame, in dem die Karte weder im Stack noch
-    // als Ghost sichtbar ist.
+    // Position ohne Zwischen-Frame kennen.
     const toRect = trickSlot.getBoundingClientRect();
 
     // Trick-Karte unsichtbar vorbereiten.
@@ -448,20 +450,15 @@ async function handleCardPlayed({ playerIndex, positionIndex }, myEpoch) {
 
     // Stack-Position aktualisieren.
     if (trickResolvedByThisPlay) {
-      // Stich beendet: State ist bereits revealed (durch applyTrickResult
-      // → revealAll im GameController). Ein volles renderAll würde die
-      // revealed Karte sofort als Vorderseite im Stack zeigen, dann
-      // käme erst 500+ ms später der Flip in handleTrickResolved.
-      // Deshalb nur das Quell-Element entfernen – kein Re-Render.
+      // Stich beendet: State ist bereits revealed. Nur das Quell-Element
+      // entfernen – kein Re-Render, sonst würde die revealed Karte
+      // sofort als Vorderseite aufblitzen.
       sourceEl.remove();
     } else {
-      // Erster Play: voller Re-Render für HUD und andere Stacks.
       rerender();
     }
 
-    // Ghost SOFORT erzeugen (gleiche Task wie remove/rerender). flyCard
-    // läuft synchron bis zum ersten await, also wird der Ghost vor dem
-    // nächsten Paint im DOM eingehängt.
+    // Ghost im selben synchronen Block erzeugen.
     if (imageSrc && fromRect) {
       await flyCard({ fromRect, toRect, imageSrc, duration: 280 });
     }
@@ -537,9 +534,6 @@ async function handleTrickResolved({ winner, revealed }, myEpoch) {
 
     clearTrickSlots();
 
-    // Die revealed Karten im Stack vor dem Re-Render unsichtbar
-    // markieren, damit der Flip-Ghost sie ohne Vorderseiten-Blitz
-    // übernehmen kann.
     if (Array.isArray(revealed) && revealed.length > 0) {
       pendingHiddenPositions = new Set(
         revealed.map((r) => `${r.playerIndex}:${r.positionIndex}`),
@@ -687,6 +681,10 @@ async function startAIGameWithDifficultyDialog() {
 }
 
 async function showRulesDialog() {
+  // Wenn bereits ein Dialog offen ist (z. B. Stoß/Nochmal, Spielart-
+  // Auswahl), nichts tun – der Nutzer soll zuerst diesen abschließen.
+  if (isDialogOpen()) return;
+
   await showInfoDialog({
     title: 'Spielregeln',
     sections: RULES_SECTIONS,
@@ -717,8 +715,12 @@ function wireMenu() {
     .addEventListener('click', () => newGame('hotseat'));
   document.querySelector('[data-action="start-ai"]')
     .addEventListener('click', startAIGameWithDifficultyDialog);
-  document.querySelector('[data-action="show-rules"]')
-    .addEventListener('click', showRulesDialog);
+
+  // Regeln-Button existiert zweimal: im Start-Screen und im Spiel-HUD.
+  document.querySelectorAll('[data-action="show-rules"]').forEach((btn) => {
+    btn.addEventListener('click', showRulesDialog);
+  });
+
   document.querySelector('[data-action="reset-stats"]')
     .addEventListener('click', confirmResetStats);
   document.querySelector('[data-action="toggle-mute"]')
