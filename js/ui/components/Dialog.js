@@ -11,14 +11,15 @@
  * damit der Aufrufer keinen HTML-Injection-Pfad hat.
  *
  * Ausrichtung: `align` steuert die vertikale Position des Dialogs.
- *   'center' (Default) – mittig, wie bisher.
- *   'top'             – am oberen Rand, damit der Spieler seine Karten
- *                       am unteren Bildschirmrand sehen kann (z. B. bei
- *                       der Spielart-Auswahl).
+ *   'center' (Default) – mittig.
+ *   'top'             – am oberen Rand.
+ *
+ * isDialogOpen() erlaubt Aufrufern, vor dem Öffnen zu prüfen, ob bereits
+ * ein Dialog offen ist – nützlich für Buttons, die den Dialog nur öffnen
+ * sollen, wenn nichts anderes aktiv ist (z. B. der Hilfe-Button im Spiel).
  *
  * closeOpenDialog() schließt einen offenen Dialog hart (ohne Promise-
- * Auflösung) und setzt das open-Flag zurück. Gedacht als Sicherheitsnetz
- * für returnToMenu oder vergleichbare „alles abbrechen"-Pfade.
+ * Auflösung) und setzt das open-Flag zurück.
  *
  * Es kann immer nur ein Dialog offen sein. Ein zweiter Aufruf während
  * eines offenen Dialogs wirft.
@@ -45,11 +46,16 @@ function closeAndResolve(resolve, value) {
   resolve(value);
 }
 
+/** Ist aktuell ein Dialog offen? */
+export function isDialogOpen() {
+  return open;
+}
+
 /**
  * Schließt einen offenen Dialog hart. Das zugehörige Promise wird NICHT
- * aufgelöst – der aufrufende Code wartet weiter. Das ist Absicht: der
- * Aufruf ist ein Sicherheitsnetz für „alles abbrechen", nicht der
- * normale Schließpfad.
+ * aufgelöst – der aufrufende Code wartet weiter. Absicht: dieser Aufruf
+ * ist ein Sicherheitsnetz für „alles abbrechen", nicht der normale
+ * Schließpfad.
  */
 export function closeOpenDialog() {
   if (!open) return;
@@ -139,6 +145,7 @@ export function showInfoDialog({ title, sections, closeLabel = 'Verstanden' }) {
     const layerEl = layer();
     layerEl.innerHTML = '';
     layerEl.hidden = false;
+    layerEl.classList.remove('dialog-layer--top');
 
     const dialog = document.createElement('div');
     dialog.className = 'dialog dialog--info';
