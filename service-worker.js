@@ -4,14 +4,11 @@
  *   - HTML        → network-first (Updates kommen sofort an)
  *   - statische Assets → cache-first (Offline-Fähigkeit)
  *
- * Precache ist zweigeteilt:
- *   - ESSENTIAL_FILES: alle Dateien, ohne die das Spiel nicht startet.
- *     Werden über cache.addAll geladen – wenn auch nur eine fehlt,
- *     schlägt der Install fehl und der SW wird nicht aktiv. Das ist
- *     gewollt, weil genau das auf einen Deploy-Fehler hinweist.
- *   - OPTIONAL_FILES: Dateien, deren Fehlen das Spiel nicht tötet
- *     (z. B. Sounds). Werden einzeln geladen; Fehler werden geloggt,
- *     aber der Install läuft trotzdem durch.
+ * Precache:
+ *   ESSENTIAL_FILES und OPTIONAL_FILES werden beide einzeln geladen
+ *   (cache.add pro Datei). Ein fehlendes Asset führt zu einer Warnung,
+ *   bricht aber den Install NICHT ab. Dadurch bleibt der Service Worker
+ *   auch dann aktiv, wenn ein einzelnes Bild oder ein Sound fehlt.
  *
  * CACHE_VERSION:
  *   Bei Änderungen an Dateinamen oder Entfernen von Dateien erhöhen.
@@ -19,12 +16,12 @@
  *   network-first ist.
  */
 
-const CACHE_VERSION = 'v6';
+const CACHE_VERSION = 'v8';
 const CACHE_NAME = `offiziersschafkopf-${CACHE_VERSION}`;
 
 /**
- * Essenzielle Dateien – müssen vorhanden sein, sonst bricht der
- * Install ab. Enthält alle Module, Stylesheets und Karten-Assets.
+ * Essenzielle Dateien. Werden bevorzugt geladen, aber nicht atomar –
+ * ein fehlender Eintrag bricht den Install nicht ab.
  */
 const ESSENTIAL_FILES = [
   // Shell
@@ -125,8 +122,8 @@ const ESSENTIAL_FILES = [
 ];
 
 /**
- * Optionale Dateien – dürfen fehlen, ohne dass der Install scheitert.
- * Werden einzeln geladen; fehlende Dateien werden geloggt.
+ * Optionale Dateien. Werden ebenfalls einzeln geladen; ein Fehlen
+ * erzeugt nur eine Warnung.
  */
 const OPTIONAL_FILES = [
   // Sounds
@@ -138,22 +135,29 @@ const OPTIONAL_FILES = [
 ];
 
 // ---------------------------------------------------------------------------
-// Install: Essentielles über addAll, Optionales einzeln
+// Install: alle Dateien einzeln cachen
 // ---------------------------------------------------------------------------
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      // Essentiell: bricht bei Fehler ab.
-      await cache.addAll(ESSENTIAL_FILES);
-
-      // Optional: einzeln, Fehler werden geloggt, aber nicht propagiert.
-      const optional = OPTIONAL_FILES.map((url) =>
-        cache.add(url).catch((err) => {
-          console.warn('Precache skip (optional):', url, err?.message ?? err);
-        }),
+      // Alles einzeln laden. Fehler werden geloggt, aber nicht propagiert.
+      const all = [...ESSENTIAL_FILES, ...OPTIONAL_FILES];
+      const results = await Promise.allSettled(
+        all.map((url) =>
+          cache.add(url).catch((err) => {
+            console.warn('Precache skip:', url, err?.message ?? err);
+          }),
+        ),
       );
-      await Promise.allSettled(optional);
+
+      // Diagnose in der Konsole: wie viele Dateien wurden gecacht?
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed > 0) {
+        console.warn(`Precache: ${failed} Datei(en) konnten nicht geladen werden.`);
+      } else {
+        console.log(`Precache: ${all.length} Dateien gecacht.`);
+      }
     }),
   );
   self.skipWaiting();
@@ -191,9 +195,6 @@ self.addEventListener('fetch', (event) => {
     (event.request.headers.get('accept') || '').includes('text/html');
 
   if (isHTML) {
-    // Network-first: neue Version sofort sichtbar, Offline-Fallback auf
-    // gecachtes index.html. Nur erfolgreiche Antworten cachen – sonst
-    // landet eine 404-Seite unter der angefragten URL im Cache.
     event.respondWith(
       fetch(event.request)
         .then((response) => {
